@@ -1,0 +1,590 @@
+---
+title: "stat462"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+date: "2026-02-18"
+---
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+```
+
+# Summary Dataset:
+```{r }
+
+
+diabetes <- read.csv(file="~/Desktop/diabetes2.csv",header=T)
+
+summary(diabetes)
+```
+
+# Box Plot:
+```{r }
+par(mfrow = c(2, 2))
+par(mar = c(3, 3, 2, 1)) 
+
+for (i in 1:8) {
+  boxplot(diabetes[, i] ~ diabetes$Outcome, 
+          main = names(diabetes)[i],
+          xlab = names(diabetes)[i],
+          ylab = "Outcome", 
+          col = c("green", "yellow"),
+          names = c("No Diabetes", "Diabetes"))
+}
+```
+
+# Histogram:
+```{r }
+par(mfrow=c(3,3))
+
+hist(diabetes$Pregnancies, main = "Histogram of Pregnancies", 
+     xlab = "Pregnancies", col = "skyblue", border = "darkblue")
+
+hist(diabetes$Glucose, main = "Histogram of Glucose", 
+     xlab = "Glucose", col = "skyblue", border = "darkblue")
+
+hist(diabetes$BloodPressure, main = "Histogram of BloodPressure", 
+     xlab = "BloodPressure", col = "skyblue", border = "darkblue")
+
+hist(diabetes$SkinThickness, main = "Histogram of SkinThickness", 
+     xlab = "SkinThickness", col = "skyblue", border = "darkblue")
+
+hist(diabetes$Insulin, main = "Histogram of Insulin", 
+     xlab = "Insulin", col = "skyblue", border = "darkblue")
+
+hist(diabetes$BMI, main = "Histogram of BMI", 
+     xlab = "BMI", col = "skyblue", border = "darkblue")
+
+hist(diabetes$DiabetesPedigreeFunction, main = "Histogram of DiabetesPedigreeFunction", 
+     xlab = "DiabetesPedigreeFunction", col = "skyblue", border = "darkblue")
+
+hist(diabetes$Age, main = "Histogram of Age", 
+     xlab = "Age", col = "skyblue", border = "darkblue")
+
+hist(diabetes$Outcome, main = "Histogram of Outcome", 
+     xlab = "Outcome", col = "skyblue", border = "darkblue")
+```
+
+# Non-logical Values:
+```{r}
+# Finding missing values at first:
+colSums(is.na(diabetes))
+
+#Count 0 in each column:
+sapply(diabetes, function(x) sum(x == 0, na.rm = TRUE))
+
+#Count clinically nonsensical 0 only
+nonsense_zero_counts <- c(
+  Glucose = sum(diabetes$Glucose == 0, na.rm = TRUE),
+  BloodPressure = sum(diabetes$BloodPressure == 0, na.rm = TRUE),
+  SkinThickness = sum(diabetes$SkinThickness == 0, na.rm = TRUE),
+  Insulin = sum(diabetes$Insulin == 0, na.rm = TRUE),
+  BMI = sum(diabetes$BMI == 0, na.rm = TRUE)
+)
+
+nonsense_zero_counts
+```
+
+# Recode Selected 0 Values to NA:
+```{r}
+#Recode non-logical 0 values into NA:
+diabetes_clean <- diabetes
+
+diabetes_clean$Glucose[diabetes_clean$Glucose == 0] <- NA
+diabetes_clean$BloodPressure[diabetes_clean$BloodPressure == 0] <- NA
+diabetes_clean$SkinThickness[diabetes_clean$SkinThickness == 0] <- NA
+diabetes_clean$Insulin[diabetes_clean$Insulin == 0] <- NA
+diabetes_clean$BMI[diabetes_clean$BMI == 0] <- NA
+
+#Check NA counts after recoding:
+colSums(is.na(diabetes_clean))
+```
+
+# % of Missing Value:
+```{r}
+# % of Missing value after recoding:
+missing_count <- colSums(is.na(diabetes_clean))
+missing_percentage <- round((missing_count / nrow(diabetes_clean)) * 100, 2)
+
+# Sumummary table of missing value:
+missing_summary <- data.frame(
+  Variable = names(missing_count),
+  Missing_Count = missing_count,
+  Missing_Percentage = missing_percentage
+)
+
+missing_summary
+```
+
+# Median Calculation & Imputation:
+```{r}
+#Median values for variables with non-logical 0 values:
+glucose_median <- median(diabetes_clean$Glucose, na.rm = TRUE)
+bloodpressure_median <- median(diabetes_clean$BloodPressure, na.rm = TRUE)
+skinthickness_median <- median(diabetes_clean$SkinThickness, na.rm = TRUE)
+insulin_median <- median(diabetes_clean$Insulin, na.rm = TRUE)
+bmi_median <- median(diabetes_clean$BMI, na.rm = TRUE)
+
+#Show median values:
+glucose_median
+bloodpressure_median
+skinthickness_median
+insulin_median
+bmi_median
+
+#Median imputation for NA values:
+diabetes_imputed <- diabetes_clean
+
+diabetes_imputed$Glucose[is.na(diabetes_imputed$Glucose)] <- glucose_median
+diabetes_imputed$BloodPressure[is.na(diabetes_imputed$BloodPressure)] <- bloodpressure_median
+diabetes_imputed$SkinThickness[is.na(diabetes_imputed$SkinThickness)] <- skinthickness_median
+diabetes_imputed$Insulin[is.na(diabetes_imputed$Insulin)] <- insulin_median
+diabetes_imputed$BMI[is.na(diabetes_imputed$BMI)] <- bmi_median
+```
+# Immputed dataset:
+```{r}
+# Check the imputed dataset:
+head(diabetes_imputed)
+summary(diabetes_imputed)
+
+# Confirm that no missing values remain:
+colSums(is.na(diabetes_imputed))
+
+# Export the final cleaned and imputed dataset:
+write.csv(diabetes_imputed,
+          "diabetes_imputed.csv",
+          row.names = FALSE)
+```
+#visualization of historgrams
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+diabetes_long <- diabetes %>%
+  pivot_longer(cols = -Outcome, names_to = "Variable", values_to = "Value")
+
+ggplot(diabetes_long, aes(x = Value, fill = factor(Outcome))) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
+  facet_wrap(~ Variable, scales = "free", ncol = 4) +
+  scale_fill_manual(values = c("skyblue", "lightcoral"),
+                    labels = c("No Diabetes", "Diabetes")) +
+  labs(title = "Distribution of Variables by Diabetes Outcome",
+       x = "Value", y = "Count", fill = "Outcome") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
+
+#visualization of violin plots
+```{r}
+diabetes_imputed_long <- diabetes_imputed %>%
+  pivot_longer(cols = -Outcome, names_to = "Variable", values_to = "Value")
+
+ggplot(diabetes_imputed_long, aes(x = Outcome, y = Value, fill = Outcome)) +
+  geom_violin(trim = FALSE, alpha = 0.6) +
+  geom_boxplot(width = 0.15, fill = "white", alpha = 0.8) +
+  facet_wrap(~ Variable, scales = "free_y") +
+  labs(x = "Outcome", y = "Value",
+       title = "Violin Plot of Variables by Diabetes Outcome") +
+  scale_fill_manual(values = c("green", "red")) +
+  theme_minimal()
+```
+
+# Correlation Matrix:
+```{r}
+library(corrplot)
+
+#Select only predictor variables only
+core_vars <- c("Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
+               "Insulin", "BMI", "DiabetesPedigreeFunction", "Age")
+
+cat("x:", core_vars, "\n")
+cat("y:", "Outcome", "\n")
+
+#Correlation matrix using imputed data
+cor_mat <- cor(diabetes_imputed[, core_vars], use = "pairwise.complete.obs")
+
+# Correlation matrix values:
+round(cor_mat, 2)
+
+# Visualize correlation plot:
+corrplot(cor_mat,
+         method = "color",
+         type = "lower",
+         diag = FALSE,
+         addCoef.col = "black",
+         tl.col = "black",
+         tl.cex = 0.8,
+         number.cex = 0.7,
+         col = colorRampPalette(c("#2166AC", "white", "#D6604D"))(200),
+         main = "Correlation Plot of Diabetes Variables",
+         mar = c(0, 0, 2, 0))
+```
+
+# Multicollinearity:
+# 1. Core Model (exclude Isulin & Skin Thickness):
+```{r}
+library(car)
+
+# Fit logistic regression model using the imputed dataset (without Isulin & Skin Thickness due to overlapping)
+model_core <- glm(Outcome ~ Pregnancies + Glucose + BloodPressure + BMI +
+                    DiabetesPedigreeFunction + Age,
+                  data = diabetes_imputed,
+                  family = binomial)
+
+# Show model summary
+summary(model_core)
+
+# Calculate Variance Inflation Factor (VIF)
+vif(model_core)
+```
+
+# 2. Full Model:
+```{r}
+# Full model including SkinThickness and Insulin:
+model_full <- glm(Outcome ~ Pregnancies + Glucose + BloodPressure +
+                    SkinThickness + Insulin + BMI +
+                    DiabetesPedigreeFunction + Age,
+                  data = diabetes_imputed,
+                  family = binomial)
+
+# Show model summary
+summary(model_full)
+
+# Calculate VIF for the full model
+vif(model_full)
+```
+
+The VIF results showed that multicollinearity was low in both models, so overlap between variables was not a major issue.
+
+So, we did not leave out `SkinThickness` and `Insulin` because of multicollinearity. They were excluded from the main model because they had many unrealistic 0 values, needed a lot of imputation, and did not improve the model. Therefore, the core model (without `SkinThickness` and `Insulin`) was used as the main training model, while the full model was only kept for comparison.
+
+# Train-test data splitting:
+```{r}
+# Partition the dataset
+library(caret)
+
+set.seed(7835)
+
+# Convert outcome to factor for classification tree
+diabetes_imputed$Outcome <- factor(diabetes_imputed$Outcome,
+                                   levels = c(0, 1),
+                                   labels = c("NoDiabetes", "Diabetes"))
+
+# Stratified split to preserve class balance
+train_index <- createDataPartition(diabetes_imputed$Outcome,
+                                   p = 0.8,
+                                   list = FALSE)
+
+train <- diabetes_imputed[train_index, ]
+test  <- diabetes_imputed[-train_index, ]
+
+# Check split sizes
+nrow(train)
+nrow(test)
+
+# Check class distribution
+prop.table(table(train$Outcome))
+prop.table(table(test$Outcome))
+```
+
+#Setup for selection
+```{r}
+#original model with 8 variables 
+full_model <- glm(Outcome ~ ., data = train, family = binomial)
+
+#empty model for later selections 
+null_model <- glm(Outcome ~ 1, data = train, family = binomial)
+
+
+summary(full_model)
+summary(null_model)
+```
+
+
+
+#forward selection
+```{r}
+forward_model <- step(
+  null_model,                    
+  scope = list(lower = null_model, upper = full_model), 
+  direction = "forward",        
+  trace = 0 #show with 1, hide with 0                     
+)
+
+summary(forward_model)
+
+```
+
+
+#backward elimination
+```{r}
+backward_model <- step(
+  full_model,
+  direction = "backward",        
+  trace = 0
+)
+
+
+summary(backward_model)
+```
+
+
+#Stepwise selection 
+```{r}
+stepwise_model <- step(
+  null_model,                   
+  scope = list(lower = null_model, upper = full_model),
+  direction = "both",           
+  trace = 0
+)
+
+
+summary(stepwise_model)
+```
+
+## Odds Ratio (OR) calculations with table 
+```{r}
+summary(stepwise_model)
+
+exp_coef <- exp(coef(stepwise_model))
+exp_ci <- exp(confint(stepwise_model))
+
+
+coef_table <- data.frame(
+  Variable = names(coef(stepwise_model)),
+  Coefficient = round(coef(stepwise_model), 4),
+  Odds_Ratio = round(exp_coef, 3),
+  CI_lower = round(exp_ci[, 1], 3),
+  CI_upper = round(exp_ci[, 2], 3)
+)
+
+print(coef_table)
+```
+#Once glucose increase 1mg/dL, the risk of diabetese increase 3.9% (explnantion above) All predictors except age and blood pressure had 95% confidence intervals that did not contain 1, confirming their statistical significance. 
+
+
+#Choose the stepwise selection and test 
+```{r}
+pred_prob <- predict(stepwise_model, 
+                     newdata = test, 
+                     type = "response")
+
+pred_class <- ifelse(pred_prob > 0.5, "Diabetes", "NoDiabetes")
+pred_class <- factor(pred_class, levels = c("NoDiabetes", "Diabetes"))
+
+accuracy <- mean(pred_class == test$Outcome)
+cat("Accuracy:", round(accuracy, 4), "\n")
+
+conf_matrix <- table(Predicted = pred_class, Actual = test$Outcome)
+print(conf_matrix)
+
+sensitivity <- conf_matrix["Diabetes", "Diabetes"] / sum(conf_matrix[, "Diabetes"])
+cat("Sensitivity:", round(sensitivity, 4), "\n")
+
+specificity <- conf_matrix["NoDiabetes", "NoDiabetes"] / sum(conf_matrix[, "NoDiabetes"])
+cat("Specificity:", round(specificity, 4), "\n")
+
+
+```
+
+
+# AUC model for LR
+```{r}
+library(pROC)
+test_outcome_num <- ifelse(test$Outcome == "Diabetes", 1, 0)
+
+roc_obj <- roc(test_outcome_num, pred_prob)
+auc_value <- auc(roc_obj)
+cat("AUC:", round(auc_value, 4), "\n")
+
+plot(roc_obj, col = "blue", lwd = 2, 
+     main = paste("ROC Curve (AUC =", round(auc_value, 3), ")"))
+```
+
+# Fit a classification tree:
+```{r}
+# Classification tree:
+library(rpart)
+library(rpart.plot)
+
+# Specify target and input variables
+formula <- Outcome ~ .
+
+# Fit classification tree on training set
+dtree_diabetes <- rpart(formula,
+                        data = train,
+                        method = "class")
+
+# Print the tree
+print(dtree_diabetes)
+
+# Show complexity parameter table
+printcp(dtree_diabetes)
+```
+
+# Visualize the decision tree
+```{r}
+# Plot the classification tree
+rpart.plot(dtree_diabetes,
+           type = 3,
+           fallen.leaves = FALSE,
+           extra = 104,
+           box.palette = "GnBu",
+           branch.lty = 1,
+           shadow.col = "gray",
+           nn = TRUE,
+           main = "Classification Tree for Diabetes Prediction")
+```
+
+# Check variable importance
+```{r}
+# Variable importance
+dtree_diabetes$variable.importance
+```
+
+# Predictions on train and test sets
+```{r}
+# Predict on training and test sets
+train$predicted_tree <- predict(dtree_diabetes,
+                                train,
+                                type = "class")
+
+test$predicted_tree <- predict(dtree_diabetes,
+                               test,
+                               type = "class")
+
+# Confusion matrix on test set
+tree_cm <- confusionMatrix(test$predicted_tree,
+                           test$Outcome,
+                           positive = "Diabetes")
+
+tree_cm
+
+# Main metrics for original tree
+tree_accuracy <- tree_cm$overall["Accuracy"]
+tree_sensitivity <- tree_cm$byClass["Sensitivity"]
+tree_specificity <- tree_cm$byClass["Specificity"]
+
+tree_accuracy
+tree_sensitivity
+tree_specificity
+
+# False positives and false negatives
+tree_table <- table(Predicted = test$predicted_tree,
+                    Actual = test$Outcome)
+
+tree_table
+
+tree_false_positives <- tree_table["Diabetes", "NoDiabetes"]
+tree_false_negatives <- tree_table["NoDiabetes", "Diabetes"]
+
+tree_false_positives
+tree_false_negatives
+```
+
+# Prune the tree:
+```{r}
+# Find best CP value using lowest xerror
+best_cp <- dtree_diabetes$cptable[which.min(dtree_diabetes$cptable[, "xerror"]), "CP"]
+best_cp
+
+# Prune the tree
+pruned_dtree_diabetes <- prune(dtree_diabetes, cp = best_cp)
+
+# Plot pruned tree
+rpart.plot(pruned_dtree_diabetes,
+           type = 3,
+           fallen.leaves = FALSE,
+           extra = 104,
+           box.palette = "GnBu",
+           branch.lty = 1,
+           shadow.col = "gray",
+           nn = TRUE,
+           main = "Pruned Classification Tree for Diabetes Prediction")
+```
+
+# Evaluate pruned tree:
+```{r}
+# Predict with pruned tree
+test$predicted_pruned <- predict(pruned_dtree_diabetes,
+                                 test,
+                                 type = "class")
+
+# Confusion matrix for pruned tree
+pruned_cm <- confusionMatrix(test$predicted_pruned,
+                             test$Outcome,
+                             positive = "Diabetes")
+
+pruned_cm
+
+# Main metrics for pruned tree
+pruned_accuracy <- pruned_cm$overall["Accuracy"]
+pruned_sensitivity <- pruned_cm$byClass["Sensitivity"]
+pruned_specificity <- pruned_cm$byClass["Specificity"]
+
+pruned_accuracy
+pruned_sensitivity
+pruned_specificity
+```
+
+# Compare orginal tree vs pruned tree:
+```{r}
+# Summary comparison
+tree_comparison <- data.frame(
+  Model = c("Original Decision Tree", "Pruned Decision Tree"),
+  Accuracy = c(tree_accuracy, pruned_accuracy),
+  Sensitivity = c(tree_sensitivity, pruned_sensitivity),
+  Specificity = c(tree_specificity, pruned_specificity)
+)
+
+tree_comparison
+```
+
+
+
+```{r}
+library(pROC)
+
+
+tree_prob <- predict(dtree_diabetes, newdata = test, type = "prob")
+test_diabetes_prob <- tree_prob[, "Diabetes"]
+test_outcome_num <- ifelse(test$Outcome == "Diabetes", 1, 0)
+
+tree_roc <- roc(test_outcome_num, test_diabetes_prob)
+tree_auc <- auc(tree_roc)
+cat("Original Decision Tree AUC:", round(tree_auc, 4), "\n")
+
+
+pruned_prob <- predict(pruned_dtree_diabetes, newdata = test, type = "prob")
+pruned_diabetes_prob <- pruned_prob[, "Diabetes"]
+
+
+pruned_roc <- roc(test_outcome_num, pruned_diabetes_prob)
+pruned_auc <- auc(pruned_roc)
+cat("Pruned Decision Tree AUC:", round(pruned_auc, 4), "\n")
+
+
+plot(tree_roc, col = "blue", lwd = 2, 
+     main = "ROC Curves: Decision Trees vs Logistic Regression")
+lines(pruned_roc, col = "red", lwd = 2)
+lines(roc_obj, col = "darkgreen", lwd = 2) 
+
+
+legend("bottomright",
+       legend = c(paste("Original Tree (AUC =", round(tree_auc, 3), ")"),
+                  paste("Pruned Tree (AUC =", round(pruned_auc, 3), ")"),
+                  paste("Logistic Regression (AUC =", round(auc_value, 3), ")")),
+       col = c("blue", "red", "darkgreen"),
+       lwd = 2)
+```
+
+
+
+
+
